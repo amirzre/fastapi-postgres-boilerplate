@@ -1,19 +1,61 @@
-version: "3.7"
 services:
   db:
-    image: postgres:14
+    image: postgres:16.4
+    container_name: postgres
     restart: always
-    volumes:
-      - ./data:/var/lib/postgresql/data/pgdata
-    env_file:
-      - app/.env
-    ports:
-      - 5433:5432
     environment:
-      - PGDATA=/var/lib/postgresql/data/pgdata
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgresql
+      POSTGRES_DB: poilerplate
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data/
+
+  db-test:
+    image: postgres:16.4-alpine
+    container_name: postgres-test
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgresql
+      POSTGRES_DB: poilerplate-test
+    ports:
+      - "5431:5432"
+    volumes:
+      - postgres-test-data:/var/lib/postgresql/data/
+
+  pgadmin:
+    container_name: pgadmin4
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@email.com
+      PGADMIN_DEFAULT_PASSWORD: "pg@pass"
+    ports:
+      - "5050:80"
 
   redis:
-    image: redis:7.0.6
+    image: redis:7.4
+    container_name: redis
     restart: always
     ports:
-      - 6379:6379
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  rabbitmq:
+    image: rabbitmq:4.0.2
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=rabbit
+      - RABBITMQ_DEFAULT_PASS=password
+
+
+volumes:
+  postgres-data:
+  postgres-test-data:
+  redis-data:
