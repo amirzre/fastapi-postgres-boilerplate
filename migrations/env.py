@@ -18,29 +18,12 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-# target_metadata = None
-
-from app.db.base import Base
-
-target_metadata = Base.metadata
-
-from app.core.config import settings
+target_metadata = None
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
-
-
-
-def get_url():
-    user = settings.POSTGRES_USER
-    password = settings.POSTGRES_PASSWORD
-    server = settings.POSTGRES_SERVER
-    port = settings.POSTGRES_PORT
-    db = settings.POSTGRES_DB
-    print(f"postgresql://{user}:{password}@{server}:{port}/{db}")
-    return f"postgresql://{user}:{password}@{server}:{port}/{db}"
 
 
 def run_migrations_offline() -> None:
@@ -55,13 +38,12 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = get_url()
+    url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        compare_type=True,
     )
 
     with context.begin_transaction():
@@ -75,17 +57,15 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = get_url()
     connectable = engine_from_config(
-        configuration,
+        config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata, compare_type=True
+            connection=connection, target_metadata=target_metadata
         )
 
         with context.begin_transaction():
