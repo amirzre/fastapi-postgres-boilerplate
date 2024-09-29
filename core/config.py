@@ -1,7 +1,8 @@
+import json
 from enum import auto
 from secrets import token_urlsafe
 
-from pydantic import PostgresDsn, RedisDsn
+from pydantic import AnyHttpUrl, PostgresDsn, RedisDsn, TypeAdapter
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from core.enum import StrEnum
@@ -14,6 +15,16 @@ class EnvironmentType(StrEnum):
 
 
 class BaseConfig(BaseSettings):
+    CORS_ORIGINS: list[AnyHttpUrl] = []
+
+    @classmethod
+    def cros_origins(cls, values):
+        """Parse CORS ORIGINS as a JSON list from the env variable."""
+        if isinstance(values.get("CORS_ORIGINS"), str):
+            cors_origins = values["CORS_ORIGINS"]
+            values["CORS_ORIGINS"] = TypeAdapter(list[AnyHttpUrl]).validate_python(json.loads(cors_origins))
+        return values
+
     model_config = SettingsConfigDict(env_file=".env", env_prefix="", env_nested_delimiter="__", case_sensitive=True)
 
 
