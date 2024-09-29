@@ -1,19 +1,63 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from contextvars import ContextVar, Token
+from typing import Union
 
-from app.core.config import settings
+from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase, Session
+from sqlalchemy.sql.expression import Delete, Insert, Update
+
+from core.config import config
+
+session_context: ContextVar[str] = ContextVar("session_context")
 
 
-engine = create_engine(settings.SQLALCHEMY_DATABASE_URI, pool_pre_ping=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-engine_async = create_async_engine(
-    settings.SQLALCHEMY_DATABASE_ASYNC_URI, pool_pre_ping=True
-)
-async_session = sessionmaker(
-    bind=engine_async,
+def get_session_context() -> str:
+    return session_context.get()
+
+
+def set_session_context(session_id: str) -> Token:
+    return session_context.set(session_id)
+
+
+def reset_session_context(context: Token) -> None:
+    session_context.reset(context)
+
+
+engines = {
+    "writer": create_async_engine(config.POSTGRES_URL.unicode_string(), pool_recycle=3600),
+    "reader": create_async_engine(config.POSTGRES_URL.unicode_string(), pool_recycle=3600),
+}
+
+
+class RoutingSession(Session):
+    def get_bind(self, mapper=None, clause=None, **kwargs):
+        if self._flushing or isinstance(clause, (Update, Delete, Insert)):
+            return engines["writer"].sync_engine
+        return engines["reader"].sync_engine
+
+
+async_session_factory = async_sessionmaker(
     class_=AsyncSession,
-    autocommit=False,
-    autoflush=False,
+    sync_session_class=RoutingSession,
     expire_on_commit=False,
 )
+
+session: Union[AsyncSession, async_scoped_session] = async_scoped_session(
+    session_factory=async_session_factory,
+    scopefunc=get_session_context,
+)
+
+
+async def get_session():
+    """
+    Get the database session.
+    This can be used for dependency injection.
+
+    :return: The database session.
+    """
+    try:
+        yield session
+    finally:
+        await session.close()
+
+
+class Base(DeclarativeBase): ...
