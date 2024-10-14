@@ -1,8 +1,8 @@
 from uuid import UUID
 
-from app.models import User, UserRole
+from app.models import User
 from app.repositories import UserRepository
-from app.schemas.request import RegisterUserRequest
+from app.schemas.request import RegisterUserRequest, UpdateUserRequest
 from core.controller import BaseController
 from core.db import Transactional
 from core.exceptions import BadRequestException, NotFoundException
@@ -35,3 +35,16 @@ class UserController(BaseController[User]):
         user_data = register_user_request.model_dump(exclude_unset=True)
         user_data["password"] = hashed_password
         return await self.user_repository.create(attributes=user_data)
+
+    @Transactional()
+    async def update_user(self, *, user_uuid: UUID, update_user_request: UpdateUserRequest) -> User:
+        user = await self.user_repository.get_by_uuid(uuid=user_uuid)
+        if not user:
+            raise NotFoundException(message="User not found.")
+
+        update_data = update_user_request.model_dump(exclude_unset=True)
+        new_password = update_data.get("password")
+        if new_password:
+            update_data["password"] = PasswordHandler.hash(password=new_password)
+
+        return await self.user_repository.update(model=user, attributes=update_data)
