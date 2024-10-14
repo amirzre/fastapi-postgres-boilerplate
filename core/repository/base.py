@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, Generic, Type, TypeVar
 
+from pydantic import BaseModel
 from sqlalchemy import Select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import select
@@ -51,37 +52,38 @@ class BaseRepository(Generic[ModelType]):
 
         return await self._all(query)
 
-    async def create(self, attributes: dict[str, Any] = None) -> ModelType:
+    async def create(self, attributes: dict[str, Any] | BaseModel) -> ModelType:
         """
         Creates the model instance.
 
-        :param attributes: The attributes to create the model with.
+        :param attributes: The Pydantic model or dictionary of attributes to create the model with.
         :return: The created model instance.
         """
-        if attributes is None:
-            attributes = {}
+        data = attributes.model_dump(exclude_unset=True) if isinstance(attributes, BaseModel) else attributes
 
-        for key, value in attributes.items():
+        for key, value in data.items():
             if isinstance(value, datetime) and value.tzinfo is not None:
-                attributes[key] = value.replace(tzinfo=None)
+                data[key] = value.replace(tzinfo=None)
 
-        model = self.model_class(**attributes)
+        model = self.model_class(**data)
         self.session.add(model)
         return model
 
-    async def update(self, model: ModelType, attributes: dict[str, Any]) -> ModelType:
+    async def update(self, model: ModelType, attributes: dict[str, Any] | BaseModel) -> ModelType:
         """
         Updates the model instance with the given attributes.
 
         :param model: The model instance to update.
-        :param attributes: A dictionary of attributes to update the model with.
+        :param attributes: A Pydantic model or dictionary of attributes to update the model with.
         :return: The updated model instance.
         """
-        for key, value in attributes.items():
+        data = attributes.model_dump(exclude_unset=True) if isinstance(attributes, BaseModel) else attributes
+
+        for key, value in data.items():
             if isinstance(value, datetime):
                 if value.tzinfo is not None:
                     value = value.replace(tzinfo=None)
-                attributes[key] = value
+                data[key] = value
             setattr(model, key, value)
 
         if hasattr(model, "updated"):
