@@ -47,3 +47,14 @@ async def update_user(
     Update a user.
     """
     return await user_controller.update_user(user_uuid=id, update_user_request=update_user_request)
+
+
+@user_router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    id: UUID,
+    user_controller: UserController = Depends(Factory().get_user_controller),
+) -> None:
+    """
+    Delete a user.
+    """
+    return await user_controller.delete_user(user_uuid=id)
