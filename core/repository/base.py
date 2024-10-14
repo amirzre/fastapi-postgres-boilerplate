@@ -4,6 +4,7 @@ from typing import Any, Generic, Type, TypeVar
 from sqlalchemy import Select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import select
+from pydantic import BaseModel
 
 from core.db import Base
 
@@ -51,21 +52,23 @@ class BaseRepository(Generic[ModelType]):
 
         return await self._all(query)
 
-    async def create(self, attributes: dict[str, Any] = None) -> ModelType:
+    async def create(self, attributes: dict[str, Any] | BaseModel) -> ModelType:
         """
         Creates the model instance.
 
         :param attributes: The attributes to create the model with.
         :return: The created model instance.
         """
-        if attributes is None:
-            attributes = {}
+        if isinstance(attributes, BaseModel):
+            data = attributes.model_dump(exclude_unset=True)
+        else:
+            data = attributes
 
-        for key, value in attributes.items():
+        for key, value in data.items():
             if isinstance(value, datetime) and value.tzinfo is not None:
-                attributes[key] = value.replace(tzinfo=None)
+                data[key] = value.replace(tzinfo=None)
 
-        model = self.model_class(**attributes)
+        model = self.model_class(**data)
         self.session.add(model)
         return model
 

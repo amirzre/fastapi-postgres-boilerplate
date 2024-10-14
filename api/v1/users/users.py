@@ -34,11 +34,4 @@ async def register_user(
     """
     Register new user.
     """
-    return await user_controller.register_user(
-        email=register_user_request.email,
-        first_name=register_user_request.first_name,
-        last_name=register_user_request.last_name,
-        password=register_user_request.password,
-        role=register_user_request.role,
-        activated=register_user_request.activated,
-    )
+    return await user_controller.register_user(register_user_request=register_user_request)
