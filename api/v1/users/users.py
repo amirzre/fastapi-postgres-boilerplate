@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 
 from app.controllers import UserController
-from app.schemas.request import RegisterUserRequest
+from app.schemas.request import RegisterUserRequest, UpdateUserRequest
 from app.schemas.response import UserResponse
 from core.factory import Factory
 
@@ -35,3 +35,15 @@ async def register_user(
     Register new user.
     """
     return await user_controller.register_user(register_user_request=register_user_request)
+
+
+@user_router.put("/{id}")
+async def update_user(
+    id: UUID,
+    update_user_request: UpdateUserRequest,
+    user_controller: UserController = Depends(Factory().get_user_controller),
+) -> UserResponse:
+    """
+    Update a user.
+    """
+    return await user_controller.update_user(user_uuid=id, update_user_request=update_user_request)
