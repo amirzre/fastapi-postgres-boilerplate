@@ -1,10 +1,10 @@
 from datetime import datetime
 from typing import Any, Generic, Type, TypeVar
 
+from pydantic import BaseModel
 from sqlalchemy import Select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import select
-from pydantic import BaseModel
 
 from core.db import Base
 
@@ -56,13 +56,10 @@ class BaseRepository(Generic[ModelType]):
         """
         Creates the model instance.
 
-        :param attributes: The attributes to create the model with.
+        :param attributes: The Pydantic model or dictionary of attributes to create the model with.
         :return: The created model instance.
         """
-        if isinstance(attributes, BaseModel):
-            data = attributes.model_dump(exclude_unset=True)
-        else:
-            data = attributes
+        data = attributes.model_dump(exclude_unset=True) if isinstance(attributes, BaseModel) else attributes
 
         for key, value in data.items():
             if isinstance(value, datetime) and value.tzinfo is not None:
@@ -72,19 +69,21 @@ class BaseRepository(Generic[ModelType]):
         self.session.add(model)
         return model
 
-    async def update(self, model: ModelType, attributes: dict[str, Any]) -> ModelType:
+    async def update(self, model: ModelType, attributes: dict[str, Any] | BaseModel) -> ModelType:
         """
         Updates the model instance with the given attributes.
 
         :param model: The model instance to update.
-        :param attributes: A dictionary of attributes to update the model with.
+        :param attributes: A Pydantic model or dictionary of attributes to update the model with.
         :return: The updated model instance.
         """
-        for key, value in attributes.items():
+        data = attributes.model_dump(exclude_unset=True) if isinstance(attributes, BaseModel) else attributes
+
+        for key, value in data.items():
             if isinstance(value, datetime):
                 if value.tzinfo is not None:
                     value = value.replace(tzinfo=None)
-                attributes[key] = value
+                data[key] = value
             setattr(model, key, value)
 
         if hasattr(model, "updated"):
