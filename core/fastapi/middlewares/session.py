@@ -14,6 +14,6 @@ class SessionMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
         response.set_cookie(
-            key="Session-Id", value=session_id, httponly=True, samesite=True, max_age=config.SESSION_EXPIRE_MINUTES
+            key="Session-Id", value=session_id, httponly=True, samesite="strict", max_age=config.SESSION_EXPIRE_MINUTES
         )
         return response
