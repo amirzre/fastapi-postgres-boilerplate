@@ -1,18 +1,24 @@
 from abc import ABC, abstractmethod
 from typing import Type
 
-from fastapi import Request
+from fastapi import Request, status
 from fastapi.openapi.models import APIKey, APIKeyIn
 from fastapi.security.base import SecurityBase
-from starlette import status
 
+from app.models import UserRole
 from core.exceptions import CustomException
 
 
 class UnauthorizedException(CustomException):
     code = status.HTTP_401_UNAUTHORIZED
     error_code = "UNAUTHORIZED"
-    message = ""
+    message = "You are not authorized to access this resource."
+
+
+class ForbiddenException(CustomException):
+    code = status.HTTP_403_FORBIDDEN
+    error_code = "FORBIDDEN"
+    message = "You do not have permission to perform this action."
 
 
 class BasePermission(ABC):
@@ -27,7 +33,17 @@ class IsAuthenticated(BasePermission):
     exception = UnauthorizedException
 
     async def has_permission(self, request: Request) -> bool:
-        return request.user.id is not None
+        return request.user is not None and request.user.uuid is not None
+
+
+class IsAdmin(IsAuthenticated):
+    exception = ForbiddenException
+
+    async def has_permission(self, request: Request) -> bool:
+        if not await super().has_permission(request):
+            return False
+
+        return request.user.role == UserRole.ADMIN
 
 
 class AllowAll(BasePermission):
